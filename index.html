@@ -17,59 +17,94 @@
         newSeed = '0'
       }
 
+      var is_generating = false
+      var has_changed = false
+      var inputData
       function update() {
-        // Oh, how I wish I had atomic ops
-        // HACK!!!
-        if (seqno % 2 == 1)
-            return;
-        seqno += 1;     // Now odd.  If it overflows go to bed.
-
-        var width, height;
-        width = '512';
-        height = '512';
-        var inputData = {
-          newSeed: newSeed,
-          width: width,
-          height: height,
-          nSteps: nSteps,
-          guidance: guidance,
-          prompt: $('#prompt').val(),
-          negative: $('#negative').val(),
-          mergeRatio: mergeRatio,
-          sharpness: sharpness
-        };
-        $.ajax({
-          url: '/submit',
-          type: 'POST',
-          data: JSON.stringify(inputData),
-          contentType: 'application/json',
-          dataType: 'json',
-          success: function(response) {
-            if (response.image) {
-              const imageContainer = document.querySelector('.imageContainer');
-
-              var image = new Image();
-              image.src = 'data:image/jpeg;base64,' + response.image;
-
-              while (imageContainer.firstChild) {
-                imageContainer.removeChild(imageContainer.firstChild);
+          var width, height;
+          width = '512';
+          height = '512';
+          if (is_generating) {
+              <!--          console.log(`Setting has changed(${has_changed}) -> true`)-->
+              has_changed = true
+              inputData = {
+                  newSeed: newSeed,
+                  width: width,
+                  height: height,
+                  nSteps: nSteps,
+                  guidance: guidance,
+                  prompt: $('#prompt').val(),
+                  negative: $('#negative').val(),
+                  mergeRatio: mergeRatio,
+                  sharpness: sharpness
               }
-
-              $('.imageContainer').prepend(image);
-            } else {
-              var message = $('<p>').text(response.message);
-              $('.imageContainer').prepend(message);
-              alert(response.message)
-            }
-            seqno = seqno + 1;
-            console.log("seqno now " + seqno);
-          },
-          error: function() {
-            seqno = seqno + 1;
-            alert('An error occurred during submission.');
-            console.log("seqno now " + seqno);
+          } else {
+              inputData = {
+                  newSeed: newSeed,
+                  width: width,
+                  height: height,
+                  nSteps: nSteps,
+                  guidance: guidance,
+                  prompt: $('#prompt').val(),
+                  negative: $('#negative').val(),
+                  mergeRatio: mergeRatio,
+                  sharpness: sharpness
+              }
+              generate()
           }
-        });
+      }
+
+      function generate() {
+          <!--        console.log(`Setting is_generating(${is_generating}) -> true`)-->
+          is_generating = true
+          <!--        console.log(`Setting has_changed(${has_changed}) -> false`)-->
+          has_changed = false
+          <!--        console.log(inputData)-->
+          <!--        console.log("Running GEN")-->
+          $.ajax({
+              url: '/submit',
+              type: 'POST',
+              data: JSON.stringify(inputData),
+              contentType: 'application/json',
+              dataType: 'json',
+              success: function(response) {
+                  if (response.image) {
+                      const imageContainer = document.querySelector('.imageContainer');
+
+                      var image = new Image();
+                      image.src = 'data:image/jpeg;base64,' + response.image;
+
+                      while (imageContainer.firstChild) {
+                          imageContainer.removeChild(imageContainer.firstChild);
+                      }
+
+                      $('.imageContainer').prepend(image);
+                  } else {
+                      var message = $('<p>').text(response.message);
+                      $('.imageContainer').prepend(message);
+                      alert(response.message)
+                  }
+                  <!--            console.log(`Setting is_generating(${is_generating}) -> false`)-->
+                  is_generating = false
+
+                  <!--            console.log(`Checking has_changed(${is_generating})`)-->
+                  if (has_changed) {
+                      <!--              console.log("Changed. Regenning")-->
+                      generate()
+                  }
+              },
+              error: function() {
+                  <!--            console.log(`Setting is_generating(${is_generating}) -> false`)-->
+                  is_generating = false
+                  alert('An error occurred during submission.');
+
+                  <!--            console.log(`Checking has_changed(${is_generating})`)-->
+                  if (has_changed) {
+                      <!--              console.log("Changed. Regenning")-->
+                      generate()
+                  }
+              }
+          });
       }
 
       $(document).ready(function() {
